@@ -1,0 +1,128 @@
+name: "${STACK_NAME}"
+services:
+  mysql:
+    image: mysql:8.0.40-debian
+    restart: always
+    container_name: ${CONTAINER_NAME:-mysql}
+    ports:
+      - 3306:3306
+    env_file:
+      - docker-compose.env
+    volumes:
+      - type: volume
+        source: mysql-data
+        target: /var/lib/mysql
+      # - type: bind
+      #   source: ./sql/1.Dump20250404.sql
+      #   target: /docker-entrypoint-initdb.d/1.Dump20250404.sql
+      #   read_only: true
+    configs:
+      - source: my.cnf
+        target: /etc/mysql/conf.d/my.cnf
+        mode: 0644
+    networks:
+      - rede
+    healthcheck:
+      test: mysql -u "$${MYSQL_USER}" -p"$${MYSQL_PASSWORD}" -h 127.0.0.1 --execute "USE $${MYSQL_DATABASE};"
+      # interval: 10s
+      # retries: 5
+      start_period: 30s
+      # timeout: 10s
+      # start_interval: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1024M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  phpmyadmin:
+    depends_on:
+      mysql:
+        condition: service_healthy
+        restart: true
+    image: phpmyadmin:latest
+    restart: always
+    container_name: ${CONTAINER_NAME:-phpmyadmin}
+    ports:
+      - 8081:80
+    env_file:
+      - docker-compose.env
+    volumes:
+      - type: bind
+        source: ./phpmyadmin_apache.conf
+        target: /etc/apache2/conf-enabled/servername.conf
+        read_only: true
+    networks:
+      - rede
+      
+  graphiql:
+    depends_on:
+      mysql:
+        condition: service_healthy
+        restart: true
+    image: nginx:alpine
+    restart: always
+    container_name: ${CONTAINER_NAME:-graphiql}
+    ports:
+      - 8080:80
+    env_file:
+      - docker-compose.env
+    volumes:
+      - type: bind
+        source: ./index.html
+        target: /usr/share/nginx/html/index.html
+        read_only: true
+    networks:
+      - rede
+      
+  server:
+    depends_on:
+      mysql:
+        condition: service_healthy
+        restart: true
+    image: "${STACK_NAME}_${CONTAINER_NAME:-server}:latest"
+    build:
+      context: ./graphql_server
+      dockerfile: ./Dockerfile
+      target: runtime
+      tags:
+        - "${STACK_NAME}_${CONTAINER_NAME:-server}:latest"
+    restart: always
+    container_name: ${CONTAINER_NAME:-server}
+    ports:
+      - 8082:80
+    env_file:
+      - docker-compose.env
+    volumes:
+      - type: bind
+        source: ./index.html
+        target: /usr/share/nginx/html/index.html
+        read_only: true
+    networks:
+      - rede
+      
+
+
+networks:
+  rede:
+    name: "${NETWORK_NAME}"
+    driver: bridge
+
+
+
+volumes:
+  mysql-data:
+    labels:
+      com.docker.compose.volume: "true"
+
+configs:
+  my.cnf:
+    content: |
+      [mysqld]
+      sql_mode=STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+      default_time_zone=America/Fortaleza
+# default-authentication-plugin=authentication_policy
+#default-authentication-plugin=mysql_native_password
