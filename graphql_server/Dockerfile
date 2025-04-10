@@ -27,7 +27,8 @@ COPY --from=build /build/node_modules ./node_modules
 COPY --from=build /build/prisma ./prisma
 COPY ./run.sh .
 
-
-EXPOSE 8082
+ARG PORT=80
+ENV PORT=${PORT}
+EXPOSE ${PORT}
 
 ENTRYPOINT [ "/app/run.sh" ]

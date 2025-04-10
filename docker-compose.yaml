@@ -88,12 +88,16 @@ services:
       context: ./graphql_server
       dockerfile: ./Dockerfile
       target: runtime
+      args:
+        - PORT=80
       tags:
         - "${STACK_NAME}_${CONTAINER_NAME:-server}:latest"
     restart: always
     container_name: ${CONTAINER_NAME:-server}
     ports:
       - 8082:80
+    environment:
+      - PORT=80
     env_file:
       - docker-compose.env
     volumes:

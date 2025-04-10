@@ -42,8 +42,10 @@ app.use(
     }),
 );
 
+const porta = +process.env.PORT!;
+
 // Modified server startup
 await new Promise<void>((resolve) =>
-    httpServer.listen({ port: 80 }, resolve),
+    httpServer.listen({ port: porta }, resolve),
 );
-console.log(`🚀 Server ready at http://localhost:80/`);
+console.log(`🚀 Server ready at http://localhost:${porta}/`);
